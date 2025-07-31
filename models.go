@@ -41,5 +41,17 @@ func databaseFeedToFeed(dbFeed database.Feed) Feed {
 		UpdatedAt: dbFeed.UpdatedAt,
 		Name:      dbFeed.Name,
 		UserID:    dbFeed.UserID,
+		Url:       dbFeed.Url,
 	}
+}
+
+// Serializer func to serialize slice of data from Goose types to JSON-normalized type.
+func dtoSliceSerializer[T any, DTO any](data []T, serializer func(T) DTO) []DTO {
+	serialized := make([]DTO, len(data))
+
+	for idx, feed := range data {
+		serialized[idx] = serializer(feed)
+	}
+
+	return serialized
 }
