@@ -25,3 +25,11 @@ SELECT COUNT(*)
 FROM posts
 JOIN feed_follows ON posts.feed_id = feed_follows.feed_id
 WHERE feed_follows.user_id = $1;
+
+-- name: GetPostsMatchingSearchTerm :many
+SELECT posts.*
+FROM posts
+JOIN feed_follows ON posts.feed_id = feed_follows.feed_id
+WHERE feed_follows.user_id = $1 
+    AND (posts.title ILIKE $2 OR posts.description ILIKE $2)
+LIMIT 10;

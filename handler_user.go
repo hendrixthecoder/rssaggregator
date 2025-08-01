@@ -108,3 +108,23 @@ func (apiCfg *apiConfig) handlerGetPostsForUser(w http.ResponseWriter, r *http.R
 		HasPreviousPage: hasPreviousPage,
 	})
 }
+
+func (apiConfig *apiConfig) handlerSearchUserPosts(w http.ResponseWriter, r *http.Request, dbUser database.User) {
+	searchStr := r.URL.Query().Get("q")
+	if searchStr == "" {
+		respondWithError(w, 400, "Search key can not be empty.")
+		return
+	}
+
+	posts, err := apiConfig.DB.GetPostsMatchingSearchTerm(r.Context(), database.GetPostsMatchingSearchTermParams{
+		UserID: dbUser.ID,
+		Title:  "%" + searchStr + "%", // Searches title & description
+	})
+	if err != nil {
+		log.Println("Error fetching searched posts: ", err)
+		respondWithError(w, 400, "Error fetching searched posts.")
+		return
+	}
+
+	respondWithJSON(w, 200, dtoSliceSerializer(posts, databasePostToPost))
+}
