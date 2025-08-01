@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
@@ -12,6 +13,9 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
+
+const concurrency int = 10
+const timeBetweenRequest time.Duration = time.Minute
 
 type apiConfig struct {
 	DB *database.Queries
@@ -35,9 +39,13 @@ func main() {
 		log.Fatal("Error connecting to DB:", err)
 	}
 
+	db := database.New(conn)
+
 	apiCfg := apiConfig{
-		DB: database.New(conn),
+		DB: db,
 	}
+
+	go startScraping(db, concurrency, timeBetweenRequest)
 
 	router := chi.NewRouter()
 
