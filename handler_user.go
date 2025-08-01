@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -44,13 +45,66 @@ func (apiCfg *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request, 
 }
 
 func (apiCfg *apiConfig) handlerGetPostsForUser(w http.ResponseWriter, r *http.Request, dbUser database.User) {
-	posts, err := apiCfg.DB.GetPostsForUser(r.Context(), database.GetPostsForUserParams{
-		UserID: dbUser.ID,
-		Limit:  10,
-	})
-	if err != nil {
-		respondWithError(w, 400, fmt.Sprintf("Error fetching posts: ", err))
+	page, limit := r.URL.Query().Get("page"), r.URL.Query().Get("limit")
+
+	type PostCountResult struct {
+		Count int
+		Err   error
 	}
 
-	respondWithJSON(w, 200, dtoSliceSerializer(posts, databasePostToPost))
+	postCountChan := make(chan PostCountResult)
+
+	pageInt, ok := parseQueryInt(page, "page", w)
+	if !ok {
+		return
+	}
+
+	limitInt, ok := parseQueryInt(limit, "limit", w)
+	if !ok {
+		return
+	}
+
+	go func() {
+		totalPostsCount, err := apiCfg.DB.GetTotalPostCountForUser(r.Context(), dbUser.ID)
+		if err != nil {
+			log.Println("Error fetching all posts, err: ", err)
+			postCountChan <- PostCountResult{Count: 0, Err: err}
+			return
+		}
+
+		postCountChan <- PostCountResult{Count: int(totalPostsCount), Err: nil}
+	}()
+
+	offsetInt := (pageInt - 1) * limitInt
+
+	posts, err := apiCfg.DB.GetPostsForUser(r.Context(), database.GetPostsForUserParams{
+		UserID: dbUser.ID,
+		Limit:  int32(limitInt),
+		Offset: int32(offsetInt),
+	})
+	if err != nil {
+		respondWithError(w, 400, fmt.Sprintf("Error fetching posts: %v", err))
+	}
+
+	type Response struct {
+		Posts           []Post `json:"posts"`
+		HasNextPage     bool   `json:"hasNextPage"`
+		HasPreviousPage bool   `json:"hasPreviousPage"`
+	}
+
+	parsed_posts := dtoSliceSerializer(posts, databasePostToPost)
+	postCountResult := <-postCountChan
+	if postCountResult.Err != nil {
+		respondWithError(w, 500, "Error getting post count")
+		return
+	}
+
+	hasNextPage := offsetInt+limitInt < postCountResult.Count
+	hasPreviousPage := offsetInt > 0
+
+	respondWithJSON(w, 200, Response{
+		Posts:           parsed_posts,
+		HasNextPage:     hasNextPage,
+		HasPreviousPage: hasPreviousPage,
+	})
 }
