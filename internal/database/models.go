@@ -38,6 +38,7 @@ type Post struct {
 	PublishedAt time.Time
 	Url         string
 	FeedID      uuid.UUID
+	UserID      uuid.UUID
 }
 
 type User struct {

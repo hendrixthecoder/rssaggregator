@@ -128,3 +128,46 @@ func (apiConfig *apiConfig) handlerSearchUserPosts(w http.ResponseWriter, r *htt
 
 	respondWithJSON(w, 200, dtoSliceSerializer(posts, databasePostToPost))
 }
+
+func (apiCfg *apiConfig) handlerSSEHandler(w http.ResponseWriter, r *http.Request, dbUser database.User) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		log.Fatal("Streaming unsupported")
+	}
+
+	ctx := r.Context()
+	newPostChan := make(chan NewPostPayload, 10)
+
+	sseManager := GetSSEManager()
+	sseManager.Add(dbUser.ID, newPostChan)
+
+	for {
+		select {
+		case <-ctx.Done():
+			sseManager.mu.Lock()
+			defer sseManager.mu.Unlock()
+
+			sseManager.Remove(dbUser.ID, newPostChan)
+			return
+
+		case post := <-newPostChan:
+			data, err := json.Marshal(post)
+			if err != nil {
+				log.Println("Failed to marshal post:", err)
+				continue
+			}
+
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+		case <-time.After(30 * time.Second):
+			// Send comment to keep connection alive
+			fmt.Fprint(w, ": keep-alive\n\n")
+			flusher.Flush()
+		}
+	}
+}

@@ -43,6 +43,16 @@ type Post struct {
 	PublishedAt time.Time `json:"published_at"`
 }
 
+type NewPostPayload struct {
+	PostID      uuid.UUID `json:"post_id"`
+	FeedID      uuid.UUID `json:"feed_id"`
+	Title       string    `json:"title"`
+	UserID      uuid.UUID `json:"user_id"`
+	Description string    `json:"decription"`
+	PublishedAt string    `json:"published_at"`
+	Url         string    `json:"url"`
+}
+
 func databaseUserToUser(dbUser database.User) User {
 	return User{
 		ID:        dbUser.ID,

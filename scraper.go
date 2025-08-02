@@ -80,12 +80,13 @@ func scrapeFeed(
 			PublishedAt: pubAt,
 			Url:         item.Link,
 			FeedID:      feed.ID,
+			UserID:      feed.UserID,
 		})
 		if createErr != nil {
 			if strings.Contains(createErr.Error(), "duplicate key") {
 				continue
 			}
-			log.Println("Failed to create post: ", err)
+			log.Println("Failed to create post: ", createErr)
 		}
 	}
 

@@ -22,10 +22,11 @@ INSERT INTO posts (
     title, 
     feed_id,
     description,
-    published_at
+    published_at,
+    user_id
 ) 
 
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, created_at, updated_at, title, description, published_at, url, feed_id
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, created_at, updated_at, title, description, published_at, url, feed_id, user_id
 `
 
 type CreatePostParams struct {
@@ -37,6 +38,7 @@ type CreatePostParams struct {
 	FeedID      uuid.UUID
 	Description sql.NullString
 	PublishedAt time.Time
+	UserID      uuid.UUID
 }
 
 func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, error) {
@@ -49,6 +51,7 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, e
 		arg.FeedID,
 		arg.Description,
 		arg.PublishedAt,
+		arg.UserID,
 	)
 	var i Post
 	err := row.Scan(
@@ -60,12 +63,13 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, e
 		&i.PublishedAt,
 		&i.Url,
 		&i.FeedID,
+		&i.UserID,
 	)
 	return i, err
 }
 
 const getPostsForUser = `-- name: GetPostsForUser :many
-SELECT posts.id, posts.created_at, posts.updated_at, posts.title, posts.description, posts.published_at, posts.url, posts.feed_id 
+SELECT posts.id, posts.created_at, posts.updated_at, posts.title, posts.description, posts.published_at, posts.url, posts.feed_id, posts.user_id 
 FROM posts
 JOIN feed_follows ON posts.feed_id = feed_follows.feed_id
 WHERE feed_follows.user_id = $1
@@ -97,6 +101,7 @@ func (q *Queries) GetPostsForUser(ctx context.Context, arg GetPostsForUserParams
 			&i.PublishedAt,
 			&i.Url,
 			&i.FeedID,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -112,7 +117,7 @@ func (q *Queries) GetPostsForUser(ctx context.Context, arg GetPostsForUserParams
 }
 
 const getPostsMatchingSearchTerm = `-- name: GetPostsMatchingSearchTerm :many
-SELECT posts.id, posts.created_at, posts.updated_at, posts.title, posts.description, posts.published_at, posts.url, posts.feed_id
+SELECT posts.id, posts.created_at, posts.updated_at, posts.title, posts.description, posts.published_at, posts.url, posts.feed_id, posts.user_id
 FROM posts
 JOIN feed_follows ON posts.feed_id = feed_follows.feed_id
 WHERE feed_follows.user_id = $1 
@@ -143,6 +148,7 @@ func (q *Queries) GetPostsMatchingSearchTerm(ctx context.Context, arg GetPostsMa
 			&i.PublishedAt,
 			&i.Url,
 			&i.FeedID,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}

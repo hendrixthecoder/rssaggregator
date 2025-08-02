@@ -46,6 +46,7 @@ func main() {
 	}
 
 	go startScraping(db, concurrency, timeBetweenRequest)
+	go startNewPostListener(dbUrl)
 
 	router := chi.NewRouter()
 
@@ -73,6 +74,8 @@ func main() {
 
 	v1Router.Get("/posts", apiCfg.middlewareAuth(apiCfg.handlerGetPostsForUser))
 	v1Router.Get("/posts/search", apiCfg.middlewareAuth(apiCfg.handlerSearchUserPosts))
+
+	v1Router.Get("/sse", apiCfg.middlewareAuth(apiCfg.handlerSSEHandler))
 
 	router.Mount("/v1", v1Router)
 
